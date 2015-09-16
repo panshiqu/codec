@@ -49,7 +49,13 @@ int main(void)
 		message->addValue<string>("username", "panshiqu");
 	}
 
-	PrototypeIterator userItr((*allUser)["users"]);
+	char* psz = new char[allUser->length()];
+	cout << allUser->serializeToArray(psz, allUser->length()) << endl;
+	unique_ptr<Prototype> allUserBak(Director::getInstance().clonePrototype("AllUser"));
+	cout << allUserBak->parseFromArray(psz, allUser->length()) << endl;
+	delete[] psz;
+
+	PrototypeIterator userItr((*allUserBak)["users"]);
 	for (; !userItr.end(); userItr.next()) {
 		Prototype* message = *userItr;
 		if (!message) break;

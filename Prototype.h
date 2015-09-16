@@ -59,6 +59,79 @@ public:
 		return clone;
 	}
 
+	virtual int length() const
+	{
+		int sum = 0;
+		for (auto c : _mapComponent) {
+			if (c.second->getRepeated())
+				sum += sizeof(uint16_t);
+
+			sum += c.second->length();
+		}
+
+		if (getNext()) sum += getNext()->length();
+		return sum;
+	}
+
+	virtual bool parseFromArray(const char* data, int size)
+	{
+		std::map<std::string, Component*>::iterator itr = _mapComponent.begin();
+		for (; itr != _mapComponent.end(); itr++) {
+			int16_t times = 0;
+			if (itr->second->getRepeated()) {
+				if (size < static_cast<int>(sizeof(int16_t)))
+					return false;
+
+				memcpy(&times, data, sizeof(int16_t));
+				data += sizeof(int16_t);
+				size -= sizeof(int16_t);
+			}
+
+			for (int16_t i = 1; i < times; i++) {
+				Component* component = itr->second->clone();
+				component->setNext(itr->second);
+				itr->second = component;
+			}
+
+			if (!itr->second->parseFromArray(data, size))
+				return false;
+
+			data += itr->second->length();
+			size -= itr->second->length();
+		}
+
+		if (getNext() && !getNext()->parseFromArray(data, size))
+			return false;
+
+		return true;
+	}
+
+	virtual bool serializeToArray(char* data, int size) const
+	{
+		for (auto c : _mapComponent) {
+			if (c.second->getRepeated()) {
+				if (size < static_cast<int>(sizeof(int16_t)))
+					return false;
+
+				int16_t times = c.second->times();
+				memcpy(data, &times, sizeof(int16_t));
+				data += sizeof(int16_t);
+				size -= sizeof(int16_t);
+			}
+
+			if (!c.second->serializeToArray(data, size))
+				return false;
+
+			data += c.second->length();
+			size -= c.second->length();
+		}
+
+		if (getNext() && !getNext()->serializeToArray(data, size))
+			return false;
+
+		return true;
+	}
+
 	template <typename T>
 	T getValue(const std::string& name);
 
